@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
 
-import './IERC20.sol';
-import {ConditionalTokens} from "./ConditionalTokens.sol";
-import './IConditionalTokens.sol';
+pragma solidity >=0.8.0;
+
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "./ConditionalTokens.sol";
 import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import { ERC1155Receiver } from "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Receiver.sol";
-import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+
 
 
 library CeilDiv {
@@ -22,7 +22,7 @@ library CeilDiv {
 //todo: add lower bounds to the price
 
 
-contract FixedProductMarketMaker is IERC20, IERC1155TokenReceiver {
+contract FixedProductMarketMaker is ERC20, ERC1155Receiver {
     event FPMMFundingAdded(
         address indexed funder,
         uint[] amountsAdded,
@@ -49,6 +49,7 @@ contract FixedProductMarketMaker is IERC20, IERC1155TokenReceiver {
         uint outcomeTokensSold
     );
 
+    
     event FPMMCreated(
         address indexed creator,
         string tokenName,
@@ -59,18 +60,25 @@ contract FixedProductMarketMaker is IERC20, IERC1155TokenReceiver {
         uint fee
     );
 
+    
+
     using CeilDiv for uint;
 
-    uint constant ONE = 10**18;
+    uint constant ONE = 10*18; // 1% == 0.01 == 1016 == 1016 / ONE = 10*-2 == 0.01
 
     address private owner;
-    IConditionalTokens private conditionalTokens;
+    ConditionalTokens private conditionalTokens;
     IERC20 private collateralToken;
+    
 
     uint private fee;
     uint internal feePoolWeight;
 
     bytes32 private conditionId;
+
+    address public oracle;
+
+    bytes32 public questionId;
     
     bytes32[] private collectionIds;
     uint private longPositionId;
@@ -78,23 +86,43 @@ contract FixedProductMarketMaker is IERC20, IERC1155TokenReceiver {
 
     uint constant numPositions = 2;
 
+    mapping(bytes32 => bytes32) questionIdtoConditionId; 
+
     mapping (address => uint256) withdrawnFees;
     uint internal totalWithdrawnFees;
+
+    mapping(bytes32 => mapping(uint => uint)) public QidTokenBalance;
 
     constructor(
         string memory name, string memory symbol,
         address _conditionalTokensAddr,
         address _collateralTokenAddr,
-        bytes32 _conditionId,
-        uint _fee
-    ) IERC20(name, symbol) {
+        uint _fee,
+        address _oracle,
+        bytes32 _questionId
+
+    ) ERC20(name, symbol) {
         fee = _fee;
-        conditionId = _conditionId;
+        
+        oracle = _oracle;
+        questionId = _questionId;
         collateralToken = IERC20(_collateralTokenAddr);
-        conditionalTokens = IConditionalTokens(_conditionalTokensAddr);
+        conditionalTokens = ConditionalTokens(_conditionalTokensAddr);
+       
+
+        
+
+
+        
+        conditionId = conditionalTokens.getConditionId(oracle,questionId,2);
+
+        questionIdtoConditionId[questionId] = conditionId;
+
         collectionIds = new bytes32[](2);
         collectionIds[0] = conditionalTokens.getCollectionId(bytes32(0), conditionId, 1);
         collectionIds[1] = conditionalTokens.getCollectionId(bytes32(0), conditionId, 2);
+
+
 
         longPositionId = conditionalTokens.getPositionId(collateralToken, collectionIds[0]);
         shortPositionId = conditionalTokens.getPositionId(collateralToken, collectionIds[1]);
@@ -102,7 +130,7 @@ contract FixedProductMarketMaker is IERC20, IERC1155TokenReceiver {
         owner = msg.sender;
 
         emit FPMMCreated(
-            msg.sender, name, symbol, _conditionalTokensAddr, _collateralTokenAddr, _conditionId, _fee
+            msg.sender, name, symbol, _conditionalTokensAddr, _collateralTokenAddr, conditionId, _fee
         );
     }
 
@@ -130,7 +158,7 @@ contract FixedProductMarketMaker is IERC20, IERC1155TokenReceiver {
         fee = newFees;
     }
 
-    function getPoolBalances() private view returns (uint[] memory) {
+    function getPoolBalances() public view returns (uint[] memory) {
         address[] memory thises = new address[](2);
         for(uint i = 0; i < thises.length; i++) {
             thises[i] = address(this);
@@ -152,16 +180,20 @@ contract FixedProductMarketMaker is IERC20, IERC1155TokenReceiver {
     function splitPositionThroughAllConditions(uint amount)
         private
     {
-        uint[] memory partition = generateBasicPartition(numPositions);
-        for(uint j = 0; j < collectionIds.length; j++) {
-            conditionalTokens.splitPosition(collateralToken, collectionIds[j], conditionId, partition, amount);
-        }
+        uint[] memory partition = new uint[](2);
+        partition[0] = 1;
+        partition[1] = 2;
+        conditionalTokens.splitPosition(collateralToken, bytes32(0), conditionId, partition, amount);
+        QidTokenBalance[questionId][0] = amount;
+        QidTokenBalance[questionId][1] = amount;
     }
 
     function mergePositionsThroughAllConditions(uint amount)
         private
     {
-        uint[] memory partition = generateBasicPartition(numPositions);
+        uint[] memory partition = new uint[](2);
+        partition[0] = 1;
+        partition[1] = 2;
         for(uint j = 0; j < collectionIds.length; j++) {
             conditionalTokens.mergePositions(collateralToken, collectionIds[j], conditionId, partition, amount);
         }
@@ -300,6 +332,7 @@ contract FixedProductMarketMaker is IERC20, IERC1155TokenReceiver {
         bytes calldata data
     )
         external
+        override
         returns (bytes4)
     {
         if (operator == address(this)) {
@@ -314,7 +347,7 @@ contract FixedProductMarketMaker is IERC20, IERC1155TokenReceiver {
         uint256[] calldata ids,
         uint256[] calldata values,
         bytes calldata data
-    )
+    )   override
         external
         returns (bytes4)
     {
@@ -322,6 +355,20 @@ contract FixedProductMarketMaker is IERC20, IERC1155TokenReceiver {
             return this.onERC1155BatchReceived.selector;
         }
         return 0x0;
+    }
+
+    function getPrices() public view returns (uint[] memory) {
+        uint[] memory prices = new uint[](2);
+        uint[] memory poolBalances = getPoolBalances();
+        require(poolBalances.length == 2, "incorrect number of balances in pool");
+
+        uint x1 = poolBalances[0];
+        uint x2 = poolBalances[1];
+
+        prices[0] = ONE * x2 / (x1 + x2);
+        prices[1] = ONE * x1 / (x1 + x2);
+
+        return prices;
     }
 
     function calcBuyAmount(uint investmentAmount, uint outcomeIndex) public view returns (uint) {
