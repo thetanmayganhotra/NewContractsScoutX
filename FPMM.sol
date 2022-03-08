@@ -94,7 +94,7 @@ contract FixedProductMarketMaker is ERC20, ERC1155Receiver {
     mapping(bytes32 => mapping(uint => uint)) public QidTokenBalance;
 
     constructor(
-        string memory name, string memory symbol,
+        string memory name, string memory symbol, // name symbol playerId
         address _conditionalTokensAddr,
         address _collateralTokenAddr,
         uint _fee,
@@ -112,7 +112,7 @@ contract FixedProductMarketMaker is ERC20, ERC1155Receiver {
 
         
 
-
+        conditionalTokens.prepareCondition(oracle,questionId,2);
         
         conditionId = conditionalTokens.getConditionId(oracle,questionId,2);
 
