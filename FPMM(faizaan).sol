@@ -1,9 +1,12 @@
-pragma solidity >=0.6.0;
+// SPDX-License-Identifier: MIT
+
+pragma solidity >=0.8.0;
 
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "./ConditionalTokens.sol";
 import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import { ERC1155Receiver } from "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Receiver.sol";
+
 
 
 library CeilDiv {
@@ -46,6 +49,7 @@ contract FixedProductMarketMaker is ERC20, ERC1155Receiver {
         uint outcomeTokensSold
     );
 
+    
     event FPMMCreated(
         address indexed creator,
         string tokenName,
@@ -56,18 +60,25 @@ contract FixedProductMarketMaker is ERC20, ERC1155Receiver {
         uint fee
     );
 
+    
+
     using CeilDiv for uint;
 
-    uint constant ONE = 10**18; // 1% == 0.01 == 10**16 == 10**16 / ONE = 10**-2 == 0.01
+    uint constant ONE = 10**18; // 1% == 0.01 == 1016 == 1016 / ONE = 10*-2 == 0.01
 
     address private owner;
     ConditionalTokens private conditionalTokens;
     IERC20 private collateralToken;
+    
 
     uint private fee;
     uint internal feePoolWeight;
 
     bytes32 private conditionId;
+
+    address public oracle;
+
+    bytes32 public questionId;
     
     bytes32[] private collectionIds;
     uint private longPositionId;
@@ -75,23 +86,43 @@ contract FixedProductMarketMaker is ERC20, ERC1155Receiver {
 
     uint constant numPositions = 2;
 
+    mapping(bytes32 => bytes32) questionIdtoConditionId; 
+
     mapping (address => uint256) withdrawnFees;
     uint internal totalWithdrawnFees;
 
+    mapping(bytes32 => mapping(uint => uint)) public QidTokenBalance;
+
     constructor(
-        string memory name, string memory symbol,
+        string memory name, string memory symbol, // name symbol playerId
         address _conditionalTokensAddr,
         address _collateralTokenAddr,
-        bytes32 _conditionId,
-        uint _fee
+        uint _fee,
+        address _oracle,
+        bytes32 _questionId
+
     ) ERC20(name, symbol) {
         fee = _fee;
-        conditionId = _conditionId;
-        collateralToken = ERC20(_collateralTokenAddr);
+        
+        oracle = _oracle;
+        questionId = _questionId;
+        collateralToken = IERC20(_collateralTokenAddr);
         conditionalTokens = ConditionalTokens(_conditionalTokensAddr);
+       
+
+        
+
+        conditionalTokens.prepareCondition(oracle,questionId,2);
+        
+        conditionId = conditionalTokens.getConditionId(oracle,questionId,2);
+
+        questionIdtoConditionId[questionId] = conditionId;
+
         collectionIds = new bytes32[](2);
         collectionIds[0] = conditionalTokens.getCollectionId(bytes32(0), conditionId, 1);
         collectionIds[1] = conditionalTokens.getCollectionId(bytes32(0), conditionId, 2);
+
+
 
         longPositionId = conditionalTokens.getPositionId(collateralToken, collectionIds[0]);
         shortPositionId = conditionalTokens.getPositionId(collateralToken, collectionIds[1]);
@@ -99,7 +130,7 @@ contract FixedProductMarketMaker is ERC20, ERC1155Receiver {
         owner = msg.sender;
 
         emit FPMMCreated(
-            msg.sender, name, symbol, _conditionalTokensAddr, _collateralTokenAddr, _conditionId, _fee
+            msg.sender, name, symbol, _conditionalTokensAddr, _collateralTokenAddr, conditionId, _fee
         );
     }
 
@@ -153,6 +184,8 @@ contract FixedProductMarketMaker is ERC20, ERC1155Receiver {
         partition[0] = 1;
         partition[1] = 2;
         conditionalTokens.splitPosition(collateralToken, bytes32(0), conditionId, partition, amount);
+        QidTokenBalance[questionId][0] = amount;
+        QidTokenBalance[questionId][1] = amount;
     }
 
     function mergePositionsThroughAllConditions(uint amount)
@@ -314,9 +347,8 @@ contract FixedProductMarketMaker is ERC20, ERC1155Receiver {
         uint256[] calldata ids,
         uint256[] calldata values,
         bytes calldata data
-    )
+    )   override
         external
-        override
         returns (bytes4)
     {
         if (operator == address(this) && from == address(0)) {
@@ -333,7 +365,7 @@ contract FixedProductMarketMaker is ERC20, ERC1155Receiver {
         uint x1 = poolBalances[0];
         uint x2 = poolBalances[1];
 
-        prices[0] = ONE * x2 / (x1 + x2);
+        prices[0] = ONE * x2 / (x1 + x2); // 100.mul(10*18)/(100 + 100)
         prices[1] = ONE * x1 / (x1 + x2);
 
         return prices;
@@ -361,19 +393,19 @@ contract FixedProductMarketMaker is ERC20, ERC1155Receiver {
     function calcSellAmount(uint returnAmount, uint outcomeIndex) public view returns (uint outcomeTokenSellAmount) {
         require(outcomeIndex < numPositions, "invalid outcome index");
 
-        uint[] memory poolBalances = getPoolBalances();
-        uint returnAmountPlusFees = (returnAmount * ONE) / (ONE - fee);
-        uint sellTokenPoolBalance = poolBalances[outcomeIndex];
-        uint endingOutcomeBalance = sellTokenPoolBalance * ONE;
+        uint[] memory poolBalances = getPoolBalances(); //100
+        uint returnAmountPlusFees = (returnAmount * ONE) / (ONE - fee); //10*(10*18) /((10*18)-10) =10.5882352941
+        uint sellTokenPoolBalance = poolBalances[outcomeIndex]; //100
+        uint endingOutcomeBalance = sellTokenPoolBalance * ONE; //18000
         for(uint i = 0; i < poolBalances.length; i++) {
             if(i != outcomeIndex) {
                 uint poolBalance = poolBalances[i];
                 endingOutcomeBalance = endingOutcomeBalance * (poolBalance).ceildiv(poolBalance - returnAmountPlusFees);
-            }
+            }//18000*(100).ceildiv(100 - 10.5) == 1800000.ceildiv(89.5) -(a // -b) == 20112
         }
         require(endingOutcomeBalance > 0, "must have non-zero balances");
 
-        return returnAmountPlusFees + (endingOutcomeBalance.ceildiv(ONE)) - sellTokenPoolBalance;
+        return returnAmountPlusFees + (endingOutcomeBalance.ceildiv(ONE)) - sellTokenPoolBalance; //10.5 + (111) - 100 =21.5
     }
 
     function buy(uint investmentAmount, uint outcomeIndex, uint minOutcomeTokensToBuy) external {
@@ -459,3 +491,15 @@ contract FixedProductMarketMakerData {
     mapping (address => uint256) internal withdrawnFees;
     uint internal totalWithdrawnFees;
 }
+
+
+/// price at which the user bought , current price = slippage => sllipage to what the user has put =>  sell/buy function ko call kardega => min tokens to buy => slippage 10%, 1$ token , 100$ amount invested => mintokens = 90 token   
+
+
+/// factory => mapping => factory edit => constructor ke through create ho rha market market
+
+
+/// admin panel => address (fpmm) => subgraph
+
+
+/// buys => a way to calculate unrealised gain => transaction history 
