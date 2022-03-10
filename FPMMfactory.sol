@@ -3,13 +3,13 @@ pragma solidity ^0.8.0;
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {ConditionalTokens} from "./ConditionalTokens.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import {FixedProductMarketMaker} from "./FPMM(faizaan).sol";
+import {FixedProductMarketMaker} from "./FPMM.sol";
 
 contract FixedProductMarketMakerFactory {
     ConditionalTokens private conditionalTokens;
     IERC20 private collateralToken;
     bytes32[] private collectionIds;
-    bytes32[] private positionIds;
+    uint[] private positionIds;
     bytes32 private conditionId;
     address private oracle;
     address private admin;
@@ -17,9 +17,9 @@ contract FixedProductMarketMakerFactory {
     address private cant;
     mapping(bytes32 => address) public questionIdtoaddress;
     mapping(bytes32 => bytes32) public questionIdtoConditionId;
-    mapping(bytes32 => bytes32[2])
+    mapping(bytes32 => mapping(uint => bytes32))
         public questionIdtoCollectionId;
-    mapping(bytes32 => bytes32[2])
+    mapping(bytes32 => mapping(uint => uint))
         public questionIdtoPositionId;
     event FixedProductMarketMakerCreation(
         address indexed creator,
@@ -55,6 +55,11 @@ contract FixedProductMarketMakerFactory {
         uint256 _fee,
         bytes32 _questionId
     ) external OnlyAdmin returns (FixedProductMarketMaker) {
+
+
+        conditionalTokens.prepareCondition(oracle, _questionId, 2);
+
+        
         conditionId = conditionalTokens.getConditionId(oracle, _questionId, 2);
         questionIdtoConditionId[_questionId] = conditionId;
         collectionIds[0] = conditionalTokens.getCollectionId(
@@ -67,8 +72,8 @@ contract FixedProductMarketMakerFactory {
             conditionId,
             2
         );
-        questionIdtoCollectionId[_questionId](0) = collectionIds[0];
-        questionIdtoCollectionId[_questionId](1) = collectionIds[1];
+        questionIdtoCollectionId[_questionId][0] = collectionIds[0];
+        questionIdtoCollectionId[_questionId][1] = collectionIds[1];
         positionIds[0] = conditionalTokens.getPositionId(
             collateralToken,
             collectionIds[0]
@@ -77,8 +82,10 @@ contract FixedProductMarketMakerFactory {
             collateralToken,
             collectionIds[1]
         );
-        questionIdtoPositionId[_questionId](0) = positionIds[0];
-        questionIdtoPositionId[_questionId](1) = positionIds[1];
+        questionIdtoPositionId[_questionId][0] = positionIds[0];
+        questionIdtoPositionId[_questionId][1] = positionIds[1];
+
+ 
         FixedProductMarketMaker newPlayer = new FixedProductMarketMaker(
             playername,
             playersymbol,
@@ -86,7 +93,8 @@ contract FixedProductMarketMakerFactory {
             calt,
             _fee,
             oracle,
-            _questionId
+            _questionId,
+            admin
         );
         emit FixedProductMarketMakerCreation(
             msg.sender,
@@ -100,7 +108,7 @@ contract FixedProductMarketMakerFactory {
         return newPlayer;
     }
 
-    function getaddressbyquestionId(uint256 _questionId)
+    function getaddressbyquestionId(bytes32 _questionId)
         public
         view
         returns (address)
@@ -108,7 +116,7 @@ contract FixedProductMarketMakerFactory {
         return questionIdtoaddress[_questionId];
     }
 
-    function getconditionIdByquestionId(uint256 _questionId)
+    function getconditionIdByquestionId(bytes32 _questionId)
         public
         view
         returns (bytes32)
@@ -117,16 +125,16 @@ contract FixedProductMarketMakerFactory {
     }
 
     function getcollectionIdByquestionId(
-        uint256 _questionId,
+        bytes32 _questionId,
         uint256 outcomeIndex
     ) public view returns (bytes32) {
-        return questionIdtoCollectionId[_questionId](outcomeIndex);
+        return questionIdtoCollectionId[_questionId][outcomeIndex];
     }
 
     function getpositionIdByquestionId(
-        uint256 _questionId,
+        bytes32 _questionId,
         uint256 outcomeIndex
-    ) public view returns (bytes32) {
-        return questionIdtoPositionId[_questionId](outcomeIndex);
+    ) public view returns (uint) {
+        return questionIdtoPositionId[_questionId][outcomeIndex];
     }
 }

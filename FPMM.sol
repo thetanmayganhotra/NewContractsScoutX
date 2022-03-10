@@ -9,6 +9,7 @@ import { ERC1155Receiver } from "@openzeppelin/contracts/token/ERC1155/utils/ERC
 
 
 
+
 library CeilDiv {
     // calculates ceil(x/y)
     function ceildiv(uint x, uint y) internal pure returns (uint) {
@@ -64,7 +65,7 @@ contract FixedProductMarketMaker is ERC20, ERC1155Receiver {
 
     using CeilDiv for uint;
 
-    uint constant ONE = 10*18; // 1% == 0.01 == 1016 == 1016 / ONE = 10*-2 == 0.01
+    uint constant ONE = 10**18; // 1% == 0.01 == 1016 == 1016 / ONE = 10*-2 == 0.01
 
     address private owner;
     ConditionalTokens private conditionalTokens;
@@ -100,7 +101,6 @@ contract FixedProductMarketMaker is ERC20, ERC1155Receiver {
         uint _fee,
         address _oracle,
         bytes32 _questionId
-
     ) ERC20(name, symbol) {
         fee = _fee;
         
@@ -112,7 +112,7 @@ contract FixedProductMarketMaker is ERC20, ERC1155Receiver {
 
         
 
-        conditionalTokens.prepareCondition(oracle,questionId,2);
+       
         
         conditionId = conditionalTokens.getConditionId(oracle,questionId,2);
 
