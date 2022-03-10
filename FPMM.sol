@@ -100,7 +100,8 @@ contract FixedProductMarketMaker is ERC20, ERC1155Receiver {
         address _collateralTokenAddr,
         uint _fee,
         address _oracle,
-        bytes32 _questionId
+        bytes32 _questionId,
+        address _owner
     ) ERC20(name, symbol) {
         fee = _fee;
         
@@ -127,7 +128,7 @@ contract FixedProductMarketMaker is ERC20, ERC1155Receiver {
         longPositionId = conditionalTokens.getPositionId(collateralToken, collectionIds[0]);
         shortPositionId = conditionalTokens.getPositionId(collateralToken, collectionIds[1]);
 
-        owner = msg.sender;
+        owner = _owner;
 
         emit FPMMCreated(
             msg.sender, name, symbol, _conditionalTokensAddr, _collateralTokenAddr, conditionId, _fee
