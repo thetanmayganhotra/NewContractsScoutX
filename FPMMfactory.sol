@@ -17,8 +17,8 @@ contract FixedProductMarketMakerFactory {
 
     IERC20 private collateralToken;
 
-    bytes32 private collectionId;
-    bytes32 private positionId;
+    bytes32[] private collectionIds;
+    bytes32[] private positionIds;
     bytes32 private conditionId;
     address private oracle;
     address private admin;
@@ -30,8 +30,8 @@ contract FixedProductMarketMakerFactory {
 
     mapping(bytes32 => address) public questionIdtoaddress;
     mapping(bytes32 => bytes32) public questionIdtoConditionId;
-    mapping(bytes32 => mapping(bytes32 => uint[])) public questionIdtoCollectionId;
-    mapping(bytes32 => mapping(bytes32 => uint[])) public questionIdtoPositionId;
+    mapping(bytes32 => mapping(uint => bytes32)) public questionIdtoCollectionId;
+    mapping(bytes32 => mapping(uint => bytes32)) public questionIdtoPositionId;
 
 
 
@@ -60,7 +60,7 @@ contract FixedProductMarketMakerFactory {
         
     }
 
-   bytes32 parentCollectionId = bytes[0];
+   bytes32 parentCollectionId = bytes32[0];
         
         
 
@@ -85,10 +85,19 @@ contract FixedProductMarketMakerFactory {
 
         conditionId = conditionalTokens.getConditionId(oracle,_questionId,2);
         questionIdtoConditionId[_questionId]= conditionId;
-        positionId = conditionalTokens.getPositionId(collateralToken,parentCollectionId);
-        questionIdtoPositionId[_questionId] = positionId; 
-        collectionId = conditionalTokens.getCollectionId(parentCollectionId,conditionId);
-        questionIdtoCollectionId[_questionId] = collectionId;
+       
+       
+        collectionIds[0] = conditionalTokens.getCollectionId(bytes32(0), conditionId, 1);
+        collectionIds[1] = conditionalTokens.getCollectionId(bytes32(0), conditionId, 2);
+        questionIdtoCollectionId[_questionId][0] = collectionIds[0];
+        questionIdtoCollectionId[_questionId][1] = collectionIds[1];
+
+
+
+        positionIds[0] = conditionalTokens.getPositionId(collateralToken, collectionIds[0]);
+        positionIds[1] = conditionalTokens.getPositionId(collateralToken, collectionIds[1]);
+        questionIdtoPositionId[_questionId][0] = positionIds[0]; 
+        questionIdtoPositionId[_questionId][1] = positionIds[1]; 
                   
 
         FixedProductMarketMaker newPlayer = new FixedProductMarketMaker(playername,playersymbol,_conditionalTokensAddr,_collateralTokenAddr,_fee,oracle,_questionId);
@@ -122,20 +131,20 @@ contract FixedProductMarketMakerFactory {
         return questionIdtoConditionId[_questionId];
     }
 
-    function getcollectionIdByquestionId(uint256 _questionId)
+    function getcollectionIdByquestionId(uint256 _questionId , uint outcomeIndex)
         public
         view
         returns (bytes32)
     {
-        return questionIdtoCollectionId[_questionId];
+        return questionIdtoCollectionId[_questionId][outcomeIndex];
     }
 
-    function getpositionIdByquestionId(uint256 _questionId)
+    function getpositionIdByquestionId(uint256 _questionId, uint outcomeIndex)
         public
         view
         returns (bytes32)
     {
-        return questionIdtoPositionId[_questionId];
+        return questionIdtoPositionId[_questionId][outcomeIndex];
     }
 
 
