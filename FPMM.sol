@@ -6,6 +6,8 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "./ConditionalTokens.sol";
 import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import { ERC1155Receiver } from "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Receiver.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
 
 
@@ -23,7 +25,7 @@ library CeilDiv {
 //todo: add lower bounds to the price
 
 
-contract FixedProductMarketMaker is ERC20, ERC1155Receiver {
+contract FixedProductMarketMaker is ERC20, ERC1155Receiver, Ownable{
     event FPMMFundingAdded(
         address indexed funder,
         uint[] amountsAdded,
@@ -67,7 +69,7 @@ contract FixedProductMarketMaker is ERC20, ERC1155Receiver {
 
     uint constant ONE = 10**18; // 1% == 0.01 == 1016 == 1016 / ONE = 10*-2 == 0.01
 
-    address private owner;
+    
     ConditionalTokens private conditionalTokens;
     IERC20 private collateralToken;
     
@@ -102,17 +104,21 @@ contract FixedProductMarketMaker is ERC20, ERC1155Receiver {
         address _oracle,
         bytes32 _questionId,
         address _owner
-    ) ERC20(name, symbol) {
+    ) ERC20(name, symbol){
         fee = _fee;
         
         oracle = _oracle;
         questionId = _questionId;
         collateralToken = IERC20(_collateralTokenAddr);
         conditionalTokens = ConditionalTokens(_conditionalTokensAddr);
+
+        address owner = _owner;
        
 
         
 
+
+       
        
         
         conditionId = conditionalTokens.getConditionId(oracle,questionId,2);
@@ -128,18 +134,14 @@ contract FixedProductMarketMaker is ERC20, ERC1155Receiver {
         longPositionId = conditionalTokens.getPositionId(collateralToken, collectionIds[0]);
         shortPositionId = conditionalTokens.getPositionId(collateralToken, collectionIds[1]);
 
-        owner = _owner;
+        
 
         emit FPMMCreated(
             msg.sender, name, symbol, _conditionalTokensAddr, _collateralTokenAddr, conditionId, _fee
         );
     }
 
-    modifier onlyOwner() {
-        require(isOwner(msg.sender), "Restricted to Owner.");
-        _;
-    }
-
+    
     function getPositionIds() public view returns (uint[] memory) {
         uint[] memory arr = new uint[](2);
         arr[0] = longPositionId;
@@ -147,9 +149,6 @@ contract FixedProductMarketMaker is ERC20, ERC1155Receiver {
         return arr;
     }
 
-    function isOwner(address sender) public view returns (bool) {
-        return sender == owner;
-    }
 
     function getFee() public view returns (uint) {
         return fee;
@@ -374,6 +373,7 @@ contract FixedProductMarketMaker is ERC20, ERC1155Receiver {
 
     function calcBuyAmount(uint investmentAmount, uint outcomeIndex) public view returns (uint) {
         require(outcomeIndex < numPositions, "invalid outcome index");
+        
 
         uint[] memory poolBalances = getPoolBalances();
         uint investmentAmountMinusFees = investmentAmount - (investmentAmount * (fee) / ONE);
@@ -394,19 +394,20 @@ contract FixedProductMarketMaker is ERC20, ERC1155Receiver {
     function calcSellAmount(uint returnAmount, uint outcomeIndex) public view returns (uint outcomeTokenSellAmount) {
         require(outcomeIndex < numPositions, "invalid outcome index");
 
-        uint[] memory poolBalances = getPoolBalances();
-        uint returnAmountPlusFees = (returnAmount * ONE) / (ONE - fee);
-        uint sellTokenPoolBalance = poolBalances[outcomeIndex];
-        uint endingOutcomeBalance = sellTokenPoolBalance * ONE;
+        uint[] memory poolBalances = getPoolBalances();//100 
+        uint returnAmountPlusFees = (returnAmount * ONE) / (ONE - fee); //10^19 / (10^18 - 10) = 10
+        uint sellTokenPoolBalance = poolBalances[outcomeIndex]; //100
+        uint endingOutcomeBalance = sellTokenPoolBalance * ONE;// 100* 10^18 = 10^20
         for(uint i = 0; i < poolBalances.length; i++) {
             if(i != outcomeIndex) {
-                uint poolBalance = poolBalances[i];
-                endingOutcomeBalance = endingOutcomeBalance * (poolBalance).ceildiv(poolBalance - returnAmountPlusFees);
+                uint poolBalance = poolBalances[i];//100
+                endingOutcomeBalance = endingOutcomeBalance * (poolBalance).ceildiv(poolBalance - returnAmountPlusFees); 
+                //10^20 * 100.ceildiv(100 - 10) => a.cd(b) => -( a//-b ) = 10^20 * (-(100//-90)) = 10^20 * 1 = 10^20
             }
         }
         require(endingOutcomeBalance > 0, "must have non-zero balances");
 
-        return returnAmountPlusFees + (endingOutcomeBalance.ceildiv(ONE)) - sellTokenPoolBalance;
+        return returnAmountPlusFees + (endingOutcomeBalance.ceildiv(ONE)) - sellTokenPoolBalance; //  10
     }
 
     function buy(uint investmentAmount, uint outcomeIndex, uint minOutcomeTokensToBuy) external {

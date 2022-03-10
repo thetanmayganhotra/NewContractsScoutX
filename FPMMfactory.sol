@@ -1,8 +1,11 @@
 // SPDX-License-Identifier: MIT
+
+
 pragma solidity ^0.8.0;
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {ConditionalTokens} from "./ConditionalTokens.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import {FixedProductMarketMaker} from "./FPMM.sol";
 
 contract FixedProductMarketMakerFactory {
@@ -57,20 +60,38 @@ contract FixedProductMarketMakerFactory {
     ) external OnlyAdmin returns (FixedProductMarketMaker) {
 
 
-        conditionalTokens.prepareCondition(oracle, _questionId, 2);
+        
+ 
+        FixedProductMarketMaker newPlayer = new FixedProductMarketMaker(
+            playername,
+            playersymbol,
+            cant,
+            calt,
+            _fee,
+            oracle,
+            _questionId,
+            admin
+        );
+
 
         
-        conditionId = conditionalTokens.getConditionId(oracle, _questionId, 2);
+
+
+
+        conditionalTokens.prepareCondition(oracle,_questionId,2);
+
+        
+        conditionId = conditionalTokens.getConditionId(oracle,_questionId,2);
         questionIdtoConditionId[_questionId] = conditionId;
         collectionIds[0] = conditionalTokens.getCollectionId(
             bytes32(0),
             conditionId,
-            1
+            0
         );
         collectionIds[1] = conditionalTokens.getCollectionId(
             bytes32(0),
             conditionId,
-            2
+            1
         );
         questionIdtoCollectionId[_questionId][0] = collectionIds[0];
         questionIdtoCollectionId[_questionId][1] = collectionIds[1];
@@ -85,17 +106,6 @@ contract FixedProductMarketMakerFactory {
         questionIdtoPositionId[_questionId][0] = positionIds[0];
         questionIdtoPositionId[_questionId][1] = positionIds[1];
 
- 
-        FixedProductMarketMaker newPlayer = new FixedProductMarketMaker(
-            playername,
-            playersymbol,
-            cant,
-            calt,
-            _fee,
-            oracle,
-            _questionId,
-            admin
-        );
         emit FixedProductMarketMakerCreation(
             msg.sender,
             newPlayer,
@@ -111,6 +121,7 @@ contract FixedProductMarketMakerFactory {
     function getaddressbyquestionId(bytes32 _questionId)
         public
         view
+      
         returns (address)
     {
         return questionIdtoaddress[_questionId];
@@ -119,6 +130,7 @@ contract FixedProductMarketMakerFactory {
     function getconditionIdByquestionId(bytes32 _questionId)
         public
         view
+
         returns (bytes32)
     {
         return questionIdtoConditionId[_questionId];
@@ -134,7 +146,9 @@ contract FixedProductMarketMakerFactory {
     function getpositionIdByquestionId(
         bytes32 _questionId,
         uint256 outcomeIndex
-    ) public view returns (uint) {
+    ) public view  returns (uint) {
         return questionIdtoPositionId[_questionId][outcomeIndex];
     }
 }
+
+//0x0000000000000000000000000000000000000000000000000000000000000002
