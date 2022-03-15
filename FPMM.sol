@@ -317,6 +317,7 @@ contract FixedProductMarketMaker is ERC20, ERC1155Receiver {
         require(poolBalances.length == 2, "incorrect number of balances in pool");
         uint x1 = poolBalances[0];
         uint x2 = poolBalances[1];
+        require((x1 > 0) || (x2 > 0), "both pools are currently empty.");
         longprice = (x2 * ONE / (x1 + x2));
         
         return longprice;
@@ -327,7 +328,9 @@ contract FixedProductMarketMaker is ERC20, ERC1155Receiver {
         uint256[] memory poolBalances = getPoolBalances();
         require(poolBalances.length == 2, "incorrect number of balances in pool");
         uint x1 = poolBalances[0];
+        
         uint x2 = poolBalances[1];
+        require((x1 > 0) || (x2 > 0), "both pools are currently empty.");
         shortprice = (x1 * ONE/ (x1 + x2));
         return shortprice;
     }
@@ -380,18 +383,18 @@ contract FixedProductMarketMaker is ERC20, ERC1155Receiver {
     }
 
      function calcBuyAmountsafe(uint investmentAmount, uint outcomeIndex) public view returns (uint) {
-        require(outcomeIndex < positionIds.length, "invalid outcome index");
+        require(outcomeIndex < positionIds.length, "invalid outcome index"); // 100
 
-        uint[] memory poolBalances = getPoolBalances();
-        uint investmentAmountMinusFees = investmentAmount.sub(investmentAmount.mul(fee) / ONE);
-        uint buyTokenPoolBalance = poolBalances[outcomeIndex];
+        uint[] memory poolBalances = getPoolBalances(); // 1
+        uint investmentAmountMinusFees = investmentAmount.sub(investmentAmount.mul(fee) / ONE); //100
+        uint buyTokenPoolBalance = poolBalances[outcomeIndex]; //10^20
         uint endingOutcomeBalance = buyTokenPoolBalance.mul(ONE);
         for(uint i = 0; i < poolBalances.length; i++) {
             if(i != outcomeIndex) {
-                uint poolBalance = poolBalances[i];
+                uint poolBalance = poolBalances[i]; // 110
                 endingOutcomeBalance = endingOutcomeBalance.mul(poolBalance).ceildiv(
                     poolBalance.add(investmentAmountMinusFees)
-                );
+                ); //100 * ONE 
             }
         }
         require(endingOutcomeBalance > 0, "must have non-zero balances");
