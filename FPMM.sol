@@ -1,7 +1,10 @@
 
-
+// SPDX-License-Identifier: MIT
 
 pragma solidity ^0.8.0;
+
+
+import { SafeMath } from "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/utils/math/SafeMath.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "./ConditionalTokens.sol";
 import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
@@ -58,6 +61,7 @@ contract FixedProductMarketMaker is ERC20, ERC1155Receiver {
         address indexed owner,
         address previousOwner
     );
+    using SafeMath for uint;
     using CeilDiv for uint;
     uint constant ONE = 10**18; // 1% == 0.01 == 10**16 == 10**16 / ONE = 10**-2 == 0.01
     address private owner;
@@ -171,7 +175,7 @@ contract FixedProductMarketMaker is ERC20, ERC1155Receiver {
         partition[0] = 1;
         partition[1] = 2;
         for(uint j = 0; j < collectionIds.length; j++) {
-            conditionalTokens.mergePositions(collateralToken, collectionIds[j], conditionId, partition, amount);
+            conditionalTokens.mergePositions(collateralToken, bytes32(0), conditionId, partition, amount);
         }
     }
     function collectedFees() external view returns (uint) {
@@ -359,18 +363,60 @@ contract FixedProductMarketMaker is ERC20, ERC1155Receiver {
     }
     function calcSellAmount(uint returnAmount, uint outcomeIndex) public view returns (uint outcomeTokenSellAmount) {
         require(outcomeIndex < numPositions, "invalid outcome index");
-        uint[] memory poolBalances = getPoolBalances();
-        uint returnAmountPlusFees = (returnAmount * ONE) / (ONE - fee);
-        uint sellTokenPoolBalance = poolBalances[outcomeIndex];
-        uint endingOutcomeBalance = sellTokenPoolBalance * ONE;
+        uint[] memory poolBalances = getPoolBalances(); // 100
+        uint returnAmountPlusFees = (returnAmount * ONE) / (ONE - fee); // 1
+        uint sellTokenPoolBalance = poolBalances[outcomeIndex]; // 100
+        uint endingOutcomeBalance = sellTokenPoolBalance * ONE; // 10^20 = 100*ONE
         for(uint i = 0; i < poolBalances.length; i++) {
             if(i != outcomeIndex) {
-                uint poolBalance = poolBalances[i];
-                endingOutcomeBalance = endingOutcomeBalance * (poolBalance).ceildiv(poolBalance - returnAmountPlusFees);
+                uint poolBalance = poolBalances[i]; //110
+                endingOutcomeBalance = endingOutcomeBalance * (poolBalance).ceildiv(poolBalance - returnAmountPlusFees); 
+                // 100 * ONE
             }
         }
         require(endingOutcomeBalance > 0, "must have non-zero balances");
-        return returnAmountPlusFees + (endingOutcomeBalance.ceildiv(ONE)) - sellTokenPoolBalance;
+        require(sellTokenPoolBalance > 0 , "sellTokenPoolBalance must be greater than zero"); 
+        return returnAmountPlusFees + endingOutcomeBalance.ceildiv(ONE) - sellTokenPoolBalance; // 1 
+    }
+
+     function calcBuyAmountsafe(uint investmentAmount, uint outcomeIndex) public view returns (uint) {
+        require(outcomeIndex < positionIds.length, "invalid outcome index");
+
+        uint[] memory poolBalances = getPoolBalances();
+        uint investmentAmountMinusFees = investmentAmount.sub(investmentAmount.mul(fee) / ONE);
+        uint buyTokenPoolBalance = poolBalances[outcomeIndex];
+        uint endingOutcomeBalance = buyTokenPoolBalance.mul(ONE);
+        for(uint i = 0; i < poolBalances.length; i++) {
+            if(i != outcomeIndex) {
+                uint poolBalance = poolBalances[i];
+                endingOutcomeBalance = endingOutcomeBalance.mul(poolBalance).ceildiv(
+                    poolBalance.add(investmentAmountMinusFees)
+                );
+            }
+        }
+        require(endingOutcomeBalance > 0, "must have non-zero balances");
+
+        return buyTokenPoolBalance.add(investmentAmountMinusFees).sub(endingOutcomeBalance.ceildiv(ONE));
+    }
+
+    function calcSellAmountsafe(uint returnAmount, uint outcomeIndex) public view returns (uint outcomeTokenSellAmount) {
+        require(outcomeIndex < positionIds.length, "invalid outcome index");
+
+        uint[] memory poolBalances = getPoolBalances();
+        uint returnAmountPlusFees = returnAmount.mul(ONE) / ONE.sub(fee);
+        uint sellTokenPoolBalance = poolBalances[outcomeIndex];
+        uint endingOutcomeBalance = sellTokenPoolBalance.mul(ONE);
+        for(uint i = 0; i < poolBalances.length; i++) {
+            if(i != outcomeIndex) {
+                uint poolBalance = poolBalances[i];
+                endingOutcomeBalance = endingOutcomeBalance.mul(poolBalance).ceildiv(
+                    poolBalance.sub(returnAmountPlusFees)
+                );
+            }
+        }
+        require(endingOutcomeBalance > 0, "must have non-zero balances");
+
+        return returnAmountPlusFees.add(endingOutcomeBalance.ceildiv(ONE)).sub(sellTokenPoolBalance);
     }
     function buy(uint investmentAmount, uint outcomeIndex, uint minOutcomeTokensToBuy) external {
         uint outcomeTokensToBuy = calcBuyAmount(investmentAmount, outcomeIndex);
@@ -394,9 +440,12 @@ contract FixedProductMarketMaker is ERC20, ERC1155Receiver {
         }
     }
     function sell(uint returnAmount, uint outcomeIndex, uint maxOutcomeTokensToSell) external {
-        uint outcomeTokensToSell = calcSellAmount(returnAmount, outcomeIndex);
+
+        
+        uint outcomeTokensToSell = calcSellAmountsafe(returnAmount, outcomeIndex);
         require(outcomeTokensToSell <= maxOutcomeTokensToSell, "maximum sell amount exceeded");
         conditionalTokens.safeTransferFrom(msg.sender, address(this), getPositionIds()[outcomeIndex], outcomeTokensToSell, "");
+      
         uint feeAmount = (returnAmount * fee) / (ONE - fee);
         feePoolWeight = feePoolWeight + feeAmount;
         uint returnAmountPlusFees = returnAmount + feeAmount;
