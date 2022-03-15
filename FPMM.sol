@@ -414,13 +414,13 @@ contract FixedProductMarketMaker is ERC20, ERC1155Receiver {
         }
     }
 
-    function getlongtradevolume() public returns(uint) {
+    function getlongtradevolume() public view returns(uint) {
         return longtradevolume;
     }
-    function getshorttradevolume() public returns(uint) {
+    function getshorttradevolume() public view returns(uint) {
         return shorttradevolume;
     }
-    function gettotalliquidity() public returns(uint) {
+    function gettotalliquidity() public view returns(uint) {
         return totalliquidity;
     }
 }
