@@ -76,6 +76,12 @@ contract FixedProductMarketMaker is ERC20, ERC1155Receiver {
     uint constant numPositions = 2;
     mapping (address => uint256) withdrawnFees;
     uint internal totalWithdrawnFees;
+
+    uint public totalliquidity;
+
+    uint public longtradevolume;
+    uint public shorttradevolume;
+
     constructor(
         string memory name,
         string memory symbol,
@@ -101,6 +107,9 @@ contract FixedProductMarketMaker is ERC20, ERC1155Receiver {
         positionIds[0] = longPositionId;
         positionIds[1] = shortPositionId;
         owner = msg.sender;
+        longtradevolume = 0;
+        shorttradevolume = 0;
+        totalliquidity = 0;
         emit FPMMCreated(
             msg.sender, name, symbol, _conditionalTokensAddr, _collateralTokenAddr, _questionId, _fee
         );
@@ -250,6 +259,8 @@ contract FixedProductMarketMaker is ERC20, ERC1155Receiver {
             sendBackAmounts[i] = addedFunds - sendBackAmounts[i];
         }
         emit FPMMFundingAdded(msg.sender, sendBackAmounts, mintAmount);
+
+        totalliquidity = totalliquidity + addedFunds;
     }
     function removeFunding(uint sharesToBurn)
         external
@@ -372,6 +383,15 @@ contract FixedProductMarketMaker is ERC20, ERC1155Receiver {
         splitPositionThroughAllConditions(investmentAmountMinusFees);
         conditionalTokens.safeTransferFrom(address(this), msg.sender, getPositionIds()[outcomeIndex], outcomeTokensToBuy, "");
         emit FPMMBuy(msg.sender, investmentAmount, feeAmount, outcomeIndex, outcomeTokensToBuy , questionId);
+
+        if (outcomeIndex == 0) {
+            longtradevolume = longtradevolume + investmentAmount;
+        }
+
+        else 
+        {
+            shorttradevolume = shorttradevolume + investmentAmount;
+        }
     }
     function sell(uint returnAmount, uint outcomeIndex, uint maxOutcomeTokensToSell) external {
         uint outcomeTokensToSell = calcSellAmount(returnAmount, outcomeIndex);
@@ -383,6 +403,25 @@ contract FixedProductMarketMaker is ERC20, ERC1155Receiver {
         mergePositionsThroughAllConditions(returnAmountPlusFees);
         require(collateralToken.transfer(msg.sender, returnAmount), "return transfer failed");
         emit FPMMSell(msg.sender, returnAmount, feeAmount, outcomeIndex, outcomeTokensToSell , questionId);
+
+        if (outcomeIndex == 0) {
+            longtradevolume = longtradevolume + returnAmount;
+        }
+
+        else 
+        {
+            shorttradevolume = shorttradevolume + returnAmount;
+        }
+    }
+
+    function getlongtradevolume() public returns(uint) {
+        return longtradevolume;
+    }
+    function getshorttradevolume() public returns(uint) {
+        return shorttradevolume;
+    }
+    function gettotalliquidity() public returns(uint) {
+        return totalliquidity;
     }
 }
 // for proxying purposes
