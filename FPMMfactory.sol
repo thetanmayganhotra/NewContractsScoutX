@@ -29,6 +29,7 @@ contract FixedProductMarketMakerFactory {
         uint256 fee
     );
 
+
     constructor(
         address _conditionalTokensAddr,
         address _collateralTokenAddr,

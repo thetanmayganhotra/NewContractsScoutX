@@ -34,7 +34,7 @@ contract FixedProductMarketMaker is ERC20, ERC1155Receiver {
     );
     event FPMMBuy(
         address indexed buyer,
-        uint investmentAmount,
+        uint investmentAmount, //price of token = investmentAmount / outcomeTokensBought 
         uint feeAmount,
         uint indexed outcomeIndex,
         uint outcomeTokensBought,
@@ -60,6 +60,19 @@ contract FixedProductMarketMaker is ERC20, ERC1155Receiver {
     event TransferredOwner(
         address indexed owner,
         address previousOwner
+    );
+
+    uint currentshortprice;
+    uint currentlongprice;
+
+
+    event longshortcurrentprice(
+       
+        uint currentlongprice,
+        uint currentshortprice,
+        uint indexed timestamp,
+        bytes32 indexed questionId,
+        address indexed fpmm
     );
     // using SafeMath for uint;
     using CeilDiv for uint;
@@ -264,6 +277,14 @@ contract FixedProductMarketMaker is ERC20, ERC1155Receiver {
         }
         emit FPMMFundingAdded(msg.sender, sendBackAmounts, mintAmount);
 
+        currentlongprice = getlongPrices();
+        currentshortprice = getshortPrices();
+        emit longshortcurrentprice( currentlongprice,
+        currentshortprice,
+        block.timestamp,
+        questionId,
+        address(this));
+
         totalliquidity = totalliquidity + addedFunds;
     }
     function removeFunding(uint sharesToBurn)
@@ -280,6 +301,14 @@ contract FixedProductMarketMaker is ERC20, ERC1155Receiver {
         collateralRemovedFromFeePool = collateralRemovedFromFeePool - collateralToken.balanceOf(address(this));
         conditionalTokens.safeBatchTransferFrom(address(this), msg.sender, getPositionIds(), sendAmounts, "");
         emit FPMMFundingRemoved(msg.sender, sendAmounts, collateralRemovedFromFeePool, sharesToBurn);
+
+        currentlongprice = getlongPrices();
+        currentshortprice = getshortPrices();
+        emit longshortcurrentprice( currentlongprice,
+        currentshortprice,
+        block.timestamp,
+        questionId,
+        address(this));
     }
     function onERC1155Received(
         address operator,
@@ -470,6 +499,14 @@ contract FixedProductMarketMaker is ERC20, ERC1155Receiver {
         splitPositionThroughAllConditions(investmentAmountMinusFees);
         conditionalTokens.safeTransferFrom(address(this), msg.sender, getPositionIds()[outcomeIndex], outcomeTokensToBuy, "");
         emit FPMMBuy(msg.sender, investmentAmount, feeAmount, outcomeIndex, outcomeTokensToBuy , questionId);
+        
+        currentlongprice = getlongPrices();
+        currentshortprice = getshortPrices();
+        emit longshortcurrentprice( currentlongprice,
+        currentshortprice,
+        block.timestamp,
+        questionId,
+        address(this));
 
         if (outcomeIndex == 0) {
             longtradevolume = longtradevolume + investmentAmount;
@@ -493,6 +530,14 @@ contract FixedProductMarketMaker is ERC20, ERC1155Receiver {
         mergePositionsThroughAllConditions(returnAmountPlusFees);
         require(collateralToken.transfer(msg.sender, returnAmount), "return transfer failed");
         emit FPMMSell(msg.sender, returnAmount, feeAmount, outcomeIndex, outcomeTokensToSell , questionId);
+
+        currentlongprice = getlongPrices();
+        currentshortprice = getshortPrices();
+        emit longshortcurrentprice( currentlongprice,
+        currentshortprice,
+        block.timestamp,
+        questionId,
+        address(this));
 
         if (outcomeIndex == 0) {
             longtradevolume = longtradevolume + returnAmount;
