@@ -54,7 +54,7 @@ contract FixedProductMarketMaker is ERC20, ERC1155Receiver {
         string tokenSymbol,
         address conditionalTokensAddr,
         address collateralTokensAddr,
-        bytes32 questionId,
+        bytes32 conditionId,
         uint fee
     );
     event TransferredOwner(
@@ -128,7 +128,7 @@ contract FixedProductMarketMaker is ERC20, ERC1155Receiver {
         shorttradevolume = 0;
         totalliquidity = 0;
         emit FPMMCreated(
-            msg.sender, name, symbol, _conditionalTokensAddr, _collateralTokenAddr, _questionId, _fee
+            msg.sender, name, symbol, _conditionalTokensAddr, _collateralTokenAddr, conditionId, _fee
         );
     }
     modifier onlyOwner() {
