@@ -54,7 +54,7 @@ contract FixedProductMarketMaker is ERC20, ERC1155Receiver {
         string tokenSymbol,
         address conditionalTokensAddr,
         address collateralTokensAddr,
-        bytes32 conditionIds,
+        bytes32 questionId,
         uint fee
     );
     event TransferredOwner(
