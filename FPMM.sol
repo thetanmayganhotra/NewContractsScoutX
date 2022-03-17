@@ -5,7 +5,7 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {ConditionalTokens} from "./ConditionalTokens.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
-import {FixedProductMarketMaker} from "./FPMM.sol";
+
 
 contract FixedProductMarketMakerFactory {
     ConditionalTokens private conditionalTokens;
