@@ -66,7 +66,7 @@ contract FixedProductMarketMaker is ERC20, ERC1155Receiver {
     uint currentlongprice;
 
 
-    event longshortcurrentprice(
+    event LongShortCurrentPrice(
        
         uint currentlongprice,
         uint currentshortprice,
@@ -279,7 +279,7 @@ contract FixedProductMarketMaker is ERC20, ERC1155Receiver {
 
         currentlongprice = getlongPrices();
         currentshortprice = getshortPrices();
-        emit longshortcurrentprice( currentlongprice,
+        emit LongShortCurrentPrice( currentlongprice,
         currentshortprice,
         block.timestamp,
         questionId,
@@ -304,7 +304,7 @@ contract FixedProductMarketMaker is ERC20, ERC1155Receiver {
 
         currentlongprice = getlongPrices();
         currentshortprice = getshortPrices();
-        emit longshortcurrentprice( currentlongprice,
+        emit LongShortCurrentPrice( currentlongprice,
         currentshortprice,
         block.timestamp,
         questionId,
@@ -502,7 +502,7 @@ contract FixedProductMarketMaker is ERC20, ERC1155Receiver {
         
         currentlongprice = getlongPrices();
         currentshortprice = getshortPrices();
-        emit longshortcurrentprice( currentlongprice,
+        emit LongShortCurrentPrice( currentlongprice,
         currentshortprice,
         block.timestamp,
         questionId,
@@ -533,7 +533,7 @@ contract FixedProductMarketMaker is ERC20, ERC1155Receiver {
 
         currentlongprice = getlongPrices();
         currentshortprice = getshortPrices();
-        emit longshortcurrentprice( currentlongprice,
+        emit LongShortCurrentPrice( currentlongprice,
         currentshortprice,
         block.timestamp,
         questionId,
