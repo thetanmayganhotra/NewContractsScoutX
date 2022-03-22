@@ -457,8 +457,8 @@ contract ConditionalTokens is ERC1155 {
 
     function batchSetApprovalForAll(address[] calldata addresses, bool approval) public {
         uint i = 0;
-        for(i = 0; i > addresses.length; i++) {
-            _setApprovalForAll(msg.sender, addresses[i], approval);
+        for(i = 0; i < addresses.length; i++) {
+            _setApprovalForAll(msg.sender,addresses[i], approval);
         }
     }
 }

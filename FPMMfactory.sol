@@ -8,6 +8,9 @@ import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import { FixedProductMarketMaker } from "./FPMM.sol";
 
+
+
+
 contract FixedProductMarketMakerFactory {
     ConditionalTokens private conditionalTokens;
     IERC20 private collateralToken;
@@ -15,6 +18,14 @@ contract FixedProductMarketMakerFactory {
     uint[] private positionIds;
     bytes32 private conditionId;
     address private oracle;
+    mapping(address => uint[]) AllHoldings;
+
+    uint256 sumofshortholdings;
+    uint256 sumoflongholdings;
+    uint256 sumofallholdings;
+
+    address[] public addresses;
+    uint counter;
 
     address private admin;
     address private _collateralTokenAddress;
@@ -41,6 +52,10 @@ contract FixedProductMarketMakerFactory {
         admin = msg.sender;
         _collateralTokenAddress = _collateralTokenAddr;
         _conditionalTokensAddress = _conditionalTokensAddr;
+        counter = 0;
+
+        sumoflongholdings = 0;
+        sumofshortholdings = 0;
     }
 
     bytes32 parentCollectionId = bytes32(0);
@@ -75,6 +90,9 @@ contract FixedProductMarketMakerFactory {
         );
         questionIdToFpmmAddress[_questionId] = address(newFpmm);
 
+        addresses[counter] = address(newFpmm);
+        counter++;
+
         newFpmm.transferOwner(msg.sender);
 
         return address(newFpmm);
@@ -87,5 +105,27 @@ contract FixedProductMarketMakerFactory {
     {
         return questionIdToFpmmAddress[_questionId];
     }
+
+    function getAllHoldingValues() public returns(uint256) {
+        uint i;
+        for (i = 0 ; i < 100 ; i++)
+        {
+            FixedProductMarketMaker fpmm = FixedProductMarketMaker(addresses[i]);
+
+            AllHoldings[addresses[i]] = fpmm.getHoldingValues(msg.sender) ;
+
+            sumofshortholdings += fpmm.getHoldingValues(msg.sender)[1];
+            sumoflongholdings += fpmm.getHoldingValues(msg.sender)[0];
+
+
+
+        }
+
+        sumofallholdings = sumofshortholdings + sumoflongholdings ;
+
+        return sumofallholdings;
+    }
+
+    
 }
 

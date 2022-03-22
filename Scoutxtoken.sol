@@ -67,7 +67,7 @@ contract ScoutX is ERC20, ERC20Burnable {
 
     function batchSetApprovalForAll(address[] calldata addresses, uint256 amount) public {
         uint i = 0;
-        for(i = 0; i > addresses.length; i++) {
+        for(i = 0; i < addresses.length; i++) {
             approve(addresses[i],amount);
         }
     }

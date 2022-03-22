@@ -53,6 +53,9 @@ contract FixedProductMarketMaker is ERC20, ERC1155Receiver {
         bytes32 conditionIds,
         uint256 fee
     );
+
+    
+
     event TransferredOwner(address indexed owner, address previousOwner);
 
     uint256 currentshortprice;
@@ -637,6 +640,31 @@ contract FixedProductMarketMaker is ERC20, ERC1155Receiver {
 
     function gettotalliquidity() public view returns (uint256) {
         return totalliquidity;
+    }
+
+    function getShortHoldingValue(address _user) public view returns(uint256){
+
+        uint256[] memory playerbalance = getBalancesFor(_user);
+        uint256 holdingvalue = playerbalance[1]*currentshortprice;
+
+        return holdingvalue;
+    }
+
+    function getLongHoldingValue(address _user) public view returns(uint256){
+        uint256[] memory playerbalance = getBalancesFor(_user);
+        uint256 holdingvalue = playerbalance[0]*currentlongprice;
+
+        return holdingvalue;
+    }
+
+    function getHoldingValues(address _user) public view returns(uint256[] memory){
+        uint256[] memory HoldingValues;
+
+        HoldingValues[0] = getLongHoldingValue(_user);
+        HoldingValues[1] = getShortHoldingValue(_user);
+
+        return HoldingValues;
+
     }
 }
 
