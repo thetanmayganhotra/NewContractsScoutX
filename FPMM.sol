@@ -637,7 +637,7 @@ contract FixedProductMarketMaker is ERC20, ERC1155Receiver {
     function getshorttradevolume() public view returns (uint256) {
         return shorttradevolume;
     }
-
+ // summation(getshorttradevolume + getlongtradevolume)
     function gettotalliquidity() public view returns (uint256) {
         return totalliquidity;
     }
@@ -649,12 +649,24 @@ contract FixedProductMarketMaker is ERC20, ERC1155Receiver {
 
         return holdingvalue;
     }
+    
+    //calling to 100 fpmms 
+
+    //summation(totalholdingvalue)
+
 
     function getLongHoldingValue(address _user) public view returns(uint256){
         uint256[] memory playerbalance = getBalancesFor(_user);
         uint256 holdingvalue = playerbalance[0]*currentlongprice;
 
         return holdingvalue;
+    }
+
+    function totalholdingvalue(address _user) public view returns(uint256) {
+        uint256 total;
+        total = getShortHoldingValue(_user) + getLongHoldingValue(_user);
+
+        return total;
     }
 
     function getHoldingValues(address _user) public view returns(uint256[] memory){

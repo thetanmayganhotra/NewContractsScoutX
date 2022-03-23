@@ -18,14 +18,13 @@ contract FixedProductMarketMakerFactory {
     uint[] private positionIds;
     bytes32 private conditionId;
     address private oracle;
-    mapping(address => uint[]) AllHoldings;
+    // mapping(address => uint[]) AllHoldings;
+    uint256[][] AllHoldings;
 
-    uint256 sumofshortholdings;
-    uint256 sumoflongholdings;
-    uint256 sumofallholdings;
+    
 
+    // bytes32[] public questionIds;
     address[] public addresses;
-    uint counter;
 
     address private admin;
     address private _collateralTokenAddress;
@@ -52,10 +51,7 @@ contract FixedProductMarketMakerFactory {
         admin = msg.sender;
         _collateralTokenAddress = _collateralTokenAddr;
         _conditionalTokensAddress = _conditionalTokensAddr;
-        counter = 0;
-
-        sumoflongholdings = 0;
-        sumofshortholdings = 0;
+      
     }
 
     bytes32 parentCollectionId = bytes32(0);
@@ -90,10 +86,13 @@ contract FixedProductMarketMakerFactory {
         );
         questionIdToFpmmAddress[_questionId] = address(newFpmm);
 
-        addresses[counter] = address(newFpmm);
-        counter++;
+        
 
         newFpmm.transferOwner(msg.sender);
+
+
+        // questionIds.push(_questionId);
+        addresses.push(questionIdToFpmmAddress[_questionId]);
 
         return address(newFpmm);
     }
@@ -106,25 +105,50 @@ contract FixedProductMarketMakerFactory {
         return questionIdToFpmmAddress[_questionId];
     }
 
-    function getAllHoldingValues() public returns(uint256) {
-        uint i;
-        for (i = 0 ; i < 100 ; i++)
-        {
-            FixedProductMarketMaker fpmm = FixedProductMarketMaker(addresses[i]);
+    // function getAllHoldingValues(address _user) public returns(uint256[][] memory) {
+    //     uint i;
+    //     uint j ;
+    //     uint256 k; 
+    //     for (i = 0 ; i < questionIds.length ; i++)
+    //     {
+    //         FixedProductMarketMaker fpmm = FixedProductMarketMaker(questionIdToFpmmAddress[questionIds[i]]);
 
-            AllHoldings[addresses[i]] = fpmm.getHoldingValues(msg.sender) ;
+    //         k = uint256(questionIds[i]);
+    //         for(j = 0 ; j < 2 ; j++) {
 
-            sumofshortholdings += fpmm.getHoldingValues(msg.sender)[1];
-            sumoflongholdings += fpmm.getHoldingValues(msg.sender)[0];
+    //         AllHoldings[k][j] = fpmm.getHoldingValues(_user)[j] ;
+
+    //         }
 
 
 
-        }
+    //     }
 
-        sumofallholdings = sumofshortholdings + sumoflongholdings ;
+    //     return AllHoldings;
+    // }
 
-        return sumofallholdings;
-    }
+    function getaddresslist() public view returns(address[] memory) {
+        return addresses;
+    } 
+
+    // function getAllHoldings(address _user) public returns(uint256[][] memory) {
+    //      uint i;
+    //      uint j;
+
+    //      for (i = 0 ; i < addresses.length ; i++)
+    //     {
+    //         FixedProductMarketMaker fpmm = FixedProductMarketMaker(addresses[i]);
+
+    //         for(j = 0 ; j < 2 ; j++)
+
+    //           {  AllHoldings[i][j] = fpmm.getHoldingValues(_user)[j] ; }
+
+    //     }
+
+    //     return AllHoldings;
+    // }
+
+
 
     
 }
