@@ -34,7 +34,9 @@ contract FixedProductMarketMaker is ERC20, ERC1155Receiver {
         uint256 feeAmount,
         uint256 indexed outcomeIndex,
         uint256 outcomeTokensBought,
-        bytes32 questionId
+        bytes32 questionId,
+        uint256 totaltradevolume
+
     );
     event FPMMSell(
         address indexed seller,
@@ -42,7 +44,8 @@ contract FixedProductMarketMaker is ERC20, ERC1155Receiver {
         uint256 feeAmount,
         uint256 indexed outcomeIndex,
         uint256 outcomeTokensSold,
-        bytes32 questionId
+        bytes32 questionId,
+        uint256 totaltradevolume
     );
     event FPMMCreated(
         address indexed creator,
@@ -92,6 +95,9 @@ contract FixedProductMarketMaker is ERC20, ERC1155Receiver {
 
     uint256 public longtradevolume;
     uint256 public shorttradevolume;
+    uint256 public theinvestmentAmountMinusFees;
+    uint256 public thereturnAmountPlusFees;
+    uint256 totaltradevolume;
 
     constructor(
         string memory name,
@@ -467,6 +473,7 @@ contract FixedProductMarketMaker is ERC20, ERC1155Receiver {
         uint256[] memory poolBalances = getPoolBalances();
         uint256 investmentAmountMinusFees = investmentAmount -
             ((investmentAmount * (fee)) / ONE);
+        
         uint256 buyTokenPoolBalance = poolBalances[outcomeIndex];
         uint256 endingOutcomeBalance = buyTokenPoolBalance * (ONE);
         for (uint256 i = 0; i < poolBalances.length; i++) {
@@ -493,6 +500,7 @@ contract FixedProductMarketMaker is ERC20, ERC1155Receiver {
 
         uint256[] memory poolBalances = getPoolBalances();
         uint256 returnAmountPlusFees = (returnAmount * ONE) / (ONE - fee);
+        
         uint256 sellTokenPoolBalance = poolBalances[outcomeIndex];
         uint256 endingOutcomeBalance = sellTokenPoolBalance * ONE;
         for (uint256 i = 0; i < poolBalances.length; i++) {
@@ -549,15 +557,7 @@ contract FixedProductMarketMaker is ERC20, ERC1155Receiver {
             outcomeTokensToBuy,
             ""
         );
-        emit FPMMBuy(
-            msg.sender,
-            investmentAmount,
-            feeAmount,
-            outcomeIndex,
-            outcomeTokensToBuy,
-            questionId
-        );
-
+        
         currentlongprice = getlongPrices();
         currentshortprice = getshortPrices();
         emit LongShortCurrentPrice(
@@ -573,6 +573,19 @@ contract FixedProductMarketMaker is ERC20, ERC1155Receiver {
         } else {
             shorttradevolume = shorttradevolume + investmentAmount;
         }
+
+        totaltradevolume = longtradevolume + shorttradevolume;
+
+        emit FPMMBuy(
+            msg.sender,
+            investmentAmount,
+            feeAmount,
+            outcomeIndex,
+            outcomeTokensToBuy,
+            questionId,
+            totaltradevolume
+        );
+
     }
 
     function sell(
@@ -604,14 +617,7 @@ contract FixedProductMarketMaker is ERC20, ERC1155Receiver {
             collateralToken.transfer(msg.sender, returnAmount),
             "return transfer failed"
         );
-        emit FPMMSell(
-            msg.sender,
-            returnAmount,
-            feeAmount,
-            outcomeIndex,
-            outcomeTokensToSell,
-            questionId
-        );
+       
 
         currentlongprice = getlongPrices();
         currentshortprice = getshortPrices();
@@ -628,6 +634,19 @@ contract FixedProductMarketMaker is ERC20, ERC1155Receiver {
         } else {
             shorttradevolume = shorttradevolume + returnAmount;
         }
+
+        totaltradevolume = longtradevolume + shorttradevolume;
+
+
+         emit FPMMSell(
+            msg.sender,
+            returnAmount,
+            feeAmount,
+            outcomeIndex,
+            outcomeTokensToSell,
+            questionId,
+            totaltradevolume
+        );
     }
 
     function getlongtradevolume() public view returns (uint256) {
@@ -637,7 +656,7 @@ contract FixedProductMarketMaker is ERC20, ERC1155Receiver {
     function getshorttradevolume() public view returns (uint256) {
         return shorttradevolume;
     }
- // summation(getshorttradevolume + getlongtradevolume)
+
     function gettotalliquidity() public view returns (uint256) {
         return totalliquidity;
     }
@@ -649,10 +668,8 @@ contract FixedProductMarketMaker is ERC20, ERC1155Receiver {
 
         return holdingvalue;
     }
-    
-    //calling to 100 fpmms 
 
-    //summation(totalholdingvalue)
+  
 
 
     function getLongHoldingValue(address _user) public view returns(uint256){
