@@ -35,7 +35,7 @@ contract FixedProductMarketMaker is ERC20, ERC1155Receiver {
         uint256 indexed outcomeIndex,
         uint256 outcomeTokensBought,
         bytes32 questionId,
-        uint256 totaltradevolume
+        uint256 totalTradeVolume
 
     );
     event FPMMSell(
@@ -45,7 +45,7 @@ contract FixedProductMarketMaker is ERC20, ERC1155Receiver {
         uint256 indexed outcomeIndex,
         uint256 outcomeTokensSold,
         bytes32 questionId,
-        uint256 totaltradevolume
+        uint256 totalTradeVolume
     );
     event FPMMCreated(
         address indexed creator,
@@ -97,7 +97,7 @@ contract FixedProductMarketMaker is ERC20, ERC1155Receiver {
     uint256 public shorttradevolume;
     uint256 public theinvestmentAmountMinusFees;
     uint256 public thereturnAmountPlusFees;
-    uint256 totaltradevolume;
+    uint256 totalTradeVolume;
 
     constructor(
         string memory name,
@@ -574,7 +574,7 @@ contract FixedProductMarketMaker is ERC20, ERC1155Receiver {
             shorttradevolume = shorttradevolume + investmentAmount;
         }
 
-        totaltradevolume = longtradevolume + shorttradevolume;
+        totalTradeVolume = longtradevolume + shorttradevolume;
 
         emit FPMMBuy(
             msg.sender,
@@ -583,7 +583,7 @@ contract FixedProductMarketMaker is ERC20, ERC1155Receiver {
             outcomeIndex,
             outcomeTokensToBuy,
             questionId,
-            totaltradevolume
+            totalTradeVolume
         );
 
     }
@@ -635,7 +635,7 @@ contract FixedProductMarketMaker is ERC20, ERC1155Receiver {
             shorttradevolume = shorttradevolume + returnAmount;
         }
 
-        totaltradevolume = longtradevolume + shorttradevolume;
+        totalTradeVolume = longtradevolume + shorttradevolume;
 
 
          emit FPMMSell(
@@ -645,7 +645,7 @@ contract FixedProductMarketMaker is ERC20, ERC1155Receiver {
             outcomeIndex,
             outcomeTokensToSell,
             questionId,
-            totaltradevolume
+            totalTradeVolume
         );
     }
 
