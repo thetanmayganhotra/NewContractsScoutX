@@ -396,8 +396,14 @@ contract FixedProductMarketMaker is ERC20, ERC1155Receiver {
             sharesToBurn
         );
 
+
         currentlongprice = getlongPrices();
         currentshortprice = getshortPrices();
+
+      
+
+
+
         emit LongShortCurrentPrice(
             currentlongprice,
             currentshortprice,
@@ -442,8 +448,14 @@ contract FixedProductMarketMaker is ERC20, ERC1155Receiver {
         );
         uint256 x1 = poolBalances[0];
         uint256 x2 = poolBalances[1];
-        require((x1 > 0) || (x2 > 0), "both pools are currently empty.");
+
+
+        if (x1 == 0 && x2 == 0 ) {
+            longprice = 0;
+        }
+        else {
         longprice = ((x2 * ONE) / (x1 + x2));
+        }
 
         return longprice;
     }
@@ -458,8 +470,14 @@ contract FixedProductMarketMaker is ERC20, ERC1155Receiver {
         uint256 x1 = poolBalances[0];
 
         uint256 x2 = poolBalances[1];
-        require((x1 > 0) || (x2 > 0), "both pools are currently empty.");
+     
+
+         if (x1 == 0 && x2 == 0 ) {
+            shortprice = 0;
+        }
+        else {
         shortprice = ((x1 * ONE) / (x1 + x2));
+        }
         return shortprice;
     }
 
