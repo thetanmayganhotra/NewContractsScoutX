@@ -29,11 +29,7 @@ contract ScoutX is ERC20, ERC20Burnable {
 
     function mint(address to, uint256 amount) external {
 
-        // if (msg.sender != owner) {
-        // require((realbalanceOf[to] < limit + 10000) , "Only 10000 tokens per user");
-        // }
-
-        
+   
 
         
         realamount = amount * (10 ** 18);
@@ -45,9 +41,7 @@ contract ScoutX is ERC20, ERC20Burnable {
     function mintme(uint256 amount) external {
 
 
-        // if (msg.sender != owner) {
-        // require((realbalanceOf[msg.sender] + amount)< limit , "Only 10000 tokens per user");
-        // }
+
 
         
         realamount = amount * (10 ** 18);
@@ -66,9 +60,8 @@ contract ScoutX is ERC20, ERC20Burnable {
     }
 
     function batchSetApprovalForAll(address[] calldata addresses, uint256 amount) public {
-        uint i = 0;
-        for(i = 0; i < addresses.length; i++) {
-            approve(addresses[i],amount);
+        for(uint i = 0; i < addresses.length; i++) {
+            _approve(msg.sender , addresses[i] , amount);
         }
     }
 }
