@@ -35,7 +35,8 @@ contract FixedProductMarketMaker is ERC20, ERC1155Receiver {
         uint256 indexed outcomeIndex,
         uint256 outcomeTokensBought,
         bytes32 questionId,
-        uint256 totalTradeVolume
+        uint256 totalTradeVolume,
+        address indexed factoryAddress
 
     );
     event FPMMSell(
@@ -45,7 +46,8 @@ contract FixedProductMarketMaker is ERC20, ERC1155Receiver {
         uint256 indexed outcomeIndex,
         uint256 outcomeTokensSold,
         bytes32 questionId,
-        uint256 totalTradeVolume
+        uint256 totalTradeVolume,
+        address indexed factoryAddress
     );
     event FPMMCreated(
         address indexed creator,
@@ -98,6 +100,7 @@ contract FixedProductMarketMaker is ERC20, ERC1155Receiver {
     uint256 public theinvestmentAmountMinusFees;
     uint256 public thereturnAmountPlusFees;
     uint256 totalTradeVolume;
+    address public factoryAddress;
 
     constructor(
         string memory name,
@@ -138,6 +141,8 @@ contract FixedProductMarketMaker is ERC20, ERC1155Receiver {
         positionIds[0] = longPositionId;
         positionIds[1] = shortPositionId;
         owner = msg.sender;
+        factoryAddress = msg.sender;
+
         longtradevolume = 0;
         shorttradevolume = 0;
         totalliquidity = 0;
@@ -221,19 +226,18 @@ contract FixedProductMarketMaker is ERC20, ERC1155Receiver {
         );
     }
 
+
     function mergePositionsThroughAllConditions(uint256 amount) private {
         uint256[] memory partition = new uint256[](2);
         partition[0] = 1;
         partition[1] = 2;
-        for (uint256 j = 0; j < collectionIds.length; j++) {
-            conditionalTokens.mergePositions(
-                collateralToken,
-                bytes32(0),
-                conditionId,
-                partition,
-                amount
-            );
-        }
+        conditionalTokens.mergePositions(
+            collateralToken,
+            bytes32(0),
+            conditionId,
+            partition,
+            amount
+        );
     }
 
     function collectedFees() external view returns (uint256) {
@@ -363,7 +367,7 @@ contract FixedProductMarketMaker is ERC20, ERC1155Receiver {
             address(this)
         );
 
-        totalliquidity = totalliquidity + addedFunds;
+        totalliquidity = totalliquidity + mintAmount;
     }
 
     function removeFunding(uint256 sharesToBurn) external {
@@ -601,7 +605,8 @@ contract FixedProductMarketMaker is ERC20, ERC1155Receiver {
             outcomeIndex,
             outcomeTokensToBuy,
             questionId,
-            totalTradeVolume
+            totalTradeVolume,
+            factoryAddress
         );
 
     }
@@ -663,7 +668,8 @@ contract FixedProductMarketMaker is ERC20, ERC1155Receiver {
             outcomeIndex,
             outcomeTokensToSell,
             questionId,
-            totalTradeVolume
+            totalTradeVolume,
+            factoryAddress
         );
     }
 
