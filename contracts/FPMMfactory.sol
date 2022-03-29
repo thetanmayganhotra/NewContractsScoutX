@@ -86,6 +86,9 @@ contract FixedProductMarketMakerFactory {
 
 
         addresses.push(questionIdToFpmmAddress[_questionId]);
+        conditionalTokens.addAddress(questionIdToFpmmAddress[_questionId]);
+
+
 
         return address(newFpmm);
     }
@@ -102,6 +105,20 @@ contract FixedProductMarketMakerFactory {
     function getaddresslist() public view returns(address[] memory) {
         return addresses;
     } 
+
+
+    function totalholdingvalueOnAllFpmms() public view returns(uint256) {
+        uint256 totalholdingvalueOnAll = 0;
+        for(uint i = 0 ; i < addresses.length ; i++) {
+            uint256 totalholdingvalueOnAll;
+            FixedProductMarketMaker fpmm = FixedProductMarketMaker(addresses[i]);
+            totalholdingvalueOnAll = totalholdingvalueOnAll + fpmm.HoldingValueTotalOnThisFpmm();
+
+
+        }
+
+        return totalholdingvalueOnAll;
+    }
 
 
 

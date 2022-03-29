@@ -8,13 +8,15 @@ import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {ERC1155Receiver} from "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Receiver.sol";
 
 library CeilDiv {
-    // calculates ceil(x/y)
+    // calculates ceil(ONE/y)
     function ceildiv(uint256 x, uint256 y) internal pure returns (uint256) {
         if (x > 0) return ((x - 1) / y) + 1;
 
         return x / y;
     }
 }
+
+
 
 contract FixedProductMarketMaker is ERC20, ERC1155Receiver {
     event FPMMFundingAdded(
@@ -58,6 +60,10 @@ contract FixedProductMarketMaker is ERC20, ERC1155Receiver {
         bytes32 conditionIds,
         uint256 fee
     );
+
+        enum MarketStatus{ PRESEASON, LIVE, PAUSED, POSTSEASON}
+     MarketStatus marketStatus;
+     MarketStatus constant defaultState = MarketStatus.PRESEASON;
 
     
 
@@ -155,12 +161,63 @@ contract FixedProductMarketMaker is ERC20, ERC1155Receiver {
             conditionId,
             _fee
         );
+
+        marketStatus = MarketStatus.PRESEASON;
     }
 
     modifier onlyOwner() {
         require(isOwner(msg.sender), "Restricted to Owner.");
         _;
     }
+    modifier notPreseason() {
+        require(
+            marketStatus != MarketStatus.PRESEASON,
+            "Cannot do this when market is preseason."
+        );
+        _;
+    }
+
+    modifier notLive() {
+        require(
+            marketStatus != MarketStatus.LIVE,
+            "Cannot do this when market is live."
+        );
+        _;
+    }
+
+    modifier notPaused() {
+        require(
+            marketStatus != MarketStatus.PAUSED,
+            "Cannot do this when market is paused."
+        );
+        _;
+    }
+
+    modifier notPostseason() {
+        require(
+            marketStatus != MarketStatus.POSTSEASON,
+            "Cannot do this when market is postseason."
+        );
+        _;
+    }
+
+
+    function getStatus() public view returns (MarketStatus) {
+        return marketStatus;
+    }
+
+    function playSeason() public onlyOwner notPostseason {
+        marketStatus = MarketStatus.LIVE;
+    }
+
+    function pauseSeason() public onlyOwner notPostseason notPreseason {
+        marketStatus = MarketStatus.PAUSED;
+    }
+
+    function concludeSeason() public onlyOwner notPaused notPreseason {
+        marketStatus = MarketStatus.POSTSEASON;
+    }
+
 
     function transferOwner(address newOwner) public onlyOwner {
         owner = newOwner;
@@ -291,8 +348,8 @@ contract FixedProductMarketMaker is ERC20, ERC1155Receiver {
     }
 
     function addFunding(uint256 addedFunds, uint256[] calldata distributionHint)
-        external
-    {
+        external notPostseason 
+    {   uint256 initialliquidity = totalliquidity;
         require(addedFunds > 0, "funding must be non-zero");
         uint256[] memory sendBackAmounts = new uint256[](numPositions);
         uint256 poolShareSupply = totalSupply();
@@ -368,9 +425,14 @@ contract FixedProductMarketMaker is ERC20, ERC1155Receiver {
         );
 
         totalliquidity = totalliquidity + mintAmount;
+
+        if (initialliquidity < 1) {playSeason();}
     }
 
-    function removeFunding(uint256 sharesToBurn) external {
+    function removeFunding(uint256 sharesToBurn) external notPreseason{
+
+        uint256 finalliquidity; 
+        uint256 removedAmount = 0;
         uint256[] memory poolBalances = getPoolBalances();
         uint256[] memory sendAmounts = new uint256[](poolBalances.length);
         uint256 poolShareSupply = totalSupply();
@@ -404,8 +466,16 @@ contract FixedProductMarketMaker is ERC20, ERC1155Receiver {
         currentlongprice = getlongPrices();
         currentshortprice = getshortPrices();
 
-      
+        for (uint256 i = 0; i < poolBalances.length; i++) {
+            removedAmount = sendAmounts[i];
 
+      
+            totalliquidity = totalliquidity - removedAmount;
+
+            finalliquidity = totalliquidity;
+
+            if (finalliquidity < 1) {concludeSeason();}
+        }
 
 
         emit LongShortCurrentPrice(
@@ -492,16 +562,16 @@ contract FixedProductMarketMaker is ERC20, ERC1155Receiver {
     {
         require(outcomeIndex < numPositions, "invalid outcome index");
 
-        uint256[] memory poolBalances = getPoolBalances();
-        uint256 investmentAmountMinusFees = investmentAmount -
+        uint256[] memory poolBalances = getPoolBalances(); //P1,P2
+        uint256 investmentAmountMinusFees = investmentAmount - //F = I - ((I*f)/ONE)
             ((investmentAmount * (fee)) / ONE);
         
-        uint256 buyTokenPoolBalance = poolBalances[outcomeIndex];
-        uint256 endingOutcomeBalance = buyTokenPoolBalance * (ONE);
+        uint256 buyTokenPoolBalance = poolBalances[outcomeIndex]; //P1
+        uint256 endingOutcomeBalance = buyTokenPoolBalance * (ONE); //E = (P1 * ONE)
         for (uint256 i = 0; i < poolBalances.length; i++) {
             if (i != outcomeIndex) {
-                uint256 poolBalance = poolBalances[i];
-                endingOutcomeBalance = (endingOutcomeBalance * poolBalance)
+                uint256 poolBalance = poolBalances[i];  //P2
+                endingOutcomeBalance = (endingOutcomeBalance * poolBalance) // E = (E * P2).CEILDIV(P2 + F) => E = (((E*P2)-1)/(P2 + F)) + 1
                     .ceildiv(poolBalance + investmentAmountMinusFees);
             }
         }
@@ -509,9 +579,18 @@ contract FixedProductMarketMaker is ERC20, ERC1155Receiver {
         require(endingOutcomeBalance > 0, "must have non-zero balances");
 
         return
-            (buyTokenPoolBalance + investmentAmountMinusFees) -
+            (buyTokenPoolBalance + investmentAmountMinusFees) -  // N = (P1 + F) - E.ceildiv(ONE) => N = (P1 + F) - ((E - 1)/ONE) + 1
             (endingOutcomeBalance.ceildiv(ONE));
     }
+
+
+    // N = (P1 + F) - ((E - 1)/ONE) + 1
+    // E = (F + P2 - 1)/F and F!=0 and F + P2!=0
+    //F = I - ((I*f)/ONE)
+    // N = (P1 + F) - ((((F + P2 - 1)/F) - 1)/ONE) + 1
+    // N = (P1 + (I - ((I*f)/ONE))) - (((((I - ((I*f)/ONE)) + P2 - 1)/(I - ((I*f)/ONE))) - 1)/ONE) + 1
+    //I = (sqrt(ONE) sqrt(ONE (-N + P1 + 1)^2 + 4 P2 - 4) - N ONE + P1 ONE + ONE)/(2 (f - ONE)) and f!=ONE and N ONE^2!=ONE^(3/2) sqrt(ONE (-N + P1 + 1)^2 + 4 P2 - 4) + P1 ONE^2 + ONE^2
+
 
     function calcSellAmount(uint256 returnAmount, uint256 outcomeIndex)
         public
@@ -544,7 +623,7 @@ contract FixedProductMarketMaker is ERC20, ERC1155Receiver {
         uint256 investmentAmount,
         uint256 outcomeIndex,
         uint256 minOutcomeTokensToBuy
-    ) external {
+    ) external notPaused notPostseason notPreseason{
         uint256 outcomeTokensToBuy = calcBuyAmount(
             investmentAmount,
             outcomeIndex
@@ -598,6 +677,8 @@ contract FixedProductMarketMaker is ERC20, ERC1155Receiver {
 
         totalTradeVolume = longtradevolume + shorttradevolume;
 
+        totalliquidity =  totalliquidity - outcomeTokensToBuy;
+
         emit FPMMBuy(
             msg.sender,
             investmentAmount,
@@ -615,7 +696,7 @@ contract FixedProductMarketMaker is ERC20, ERC1155Receiver {
         uint256 returnAmount,
         uint256 outcomeIndex,
         uint256 maxOutcomeTokensToSell
-    ) external {
+    ) external notPaused notPostseason notPreseason{
         uint256 outcomeTokensToSell = calcSellAmount(
             returnAmount,
             outcomeIndex
@@ -660,6 +741,8 @@ contract FixedProductMarketMaker is ERC20, ERC1155Receiver {
 
         totalTradeVolume = longtradevolume + shorttradevolume;
 
+        totalliquidity =  totalliquidity + outcomeTokensToSell;
+
 
          emit FPMMSell(
             msg.sender,
@@ -685,6 +768,8 @@ contract FixedProductMarketMaker is ERC20, ERC1155Receiver {
         return totalliquidity;
     }
 
+
+
     function getShortHoldingValue(address _user) public view returns(uint256){
 
         uint256[] memory playerbalance = getBalancesFor(_user);
@@ -706,6 +791,31 @@ contract FixedProductMarketMaker is ERC20, ERC1155Receiver {
     function totalholdingvalue(address _user) public view returns(uint256) {
         uint256 total;
         total = getShortHoldingValue(_user) + getLongHoldingValue(_user);
+
+        return total;
+    }
+
+    function getShortHoldingValuetotal() public view returns(uint256){
+
+        uint256[] memory poolbalance = getPoolBalances();
+        uint256 holdingvalue = poolbalance[1]*currentshortprice;
+
+        return holdingvalue;
+    }
+
+  
+
+
+    function getLongHoldingValuetotal() public view returns(uint256){
+        uint256[] memory poolbalance = getPoolBalances();
+        uint256 holdingvalue = poolbalance[0]*currentlongprice;
+
+        return holdingvalue;
+    }
+
+    function HoldingValueTotalOnThisFpmm() public view returns(uint256) {
+        uint256 total;
+        total = getShortHoldingValuetotal() + getLongHoldingValuetotal();
 
         return total;
     }

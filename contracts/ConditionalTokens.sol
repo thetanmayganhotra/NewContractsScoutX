@@ -54,12 +54,17 @@ contract ConditionalTokens is ERC1155 {
         uint256 payout
     );
 
+    address[] FPMMAddresses;
+    address FPMMowner;
+
     /// Mapping key is an condition ID. Value represents numerators of the payout vector associated with the condition. This array is initialized with a length equal to the outcome slot count. E.g. Condition with 3 outcomes [A, B, C] and two of those correct [0.5, 0.5, 0]. In Ethereum there are no decimal values, so here, 0.5 is represented by fractions like 1/2 == 0.5. That's why we need numerator and denominator values. Payout numerators are also used as a check of initialization. If the numerators array is empty (has length zero), the condition was not created/prepared. See getOutcomeSlotCount.
     mapping(bytes32 => uint256[]) public payoutNumerators;
     /// Denominator is also used for checking if the condition has been resolved. If the denominator is non-zero, then the condition has been resolved.
     mapping(bytes32 => uint256) public payoutDenominator;
 
-    constructor() ERC1155("") {}
+    constructor() ERC1155("") {
+        FPMMowner = msg.sender;
+    }
 
     /// @dev This function prepares a condition by initializing a payout vector associated with the condition.
     /// @param oracle The account assigned to report the result for the prepared condition.
@@ -461,4 +466,40 @@ contract ConditionalTokens is ERC1155 {
             _setApprovalForAll(msg.sender,addresses[i], approval);
         }
     }
+    
+
+    function addAddress(address _address) external {
+        FPMMAddresses.push(_address);
+    } 
+
+    function safeTransferFrom(
+        address from,
+        address to,
+        uint256 id,
+        uint256 amount,
+        bytes memory data
+    ) public virtual override {
+        bool tofpmm;
+
+        for ( uint i = 0 ; i < FPMMAddresses.length ; i++) {
+            if(to == FPMMAddresses[i]) {
+                tofpmm = true;
+                break;
+            }
+            else {
+                tofpmm = false;
+            }
+        }
+
+        require(tofpmm == true || to == FPMMowner,"External Transfer of these tokens not allowed");
+        require(
+            from == _msgSender() || isApprovedForAll(from, _msgSender()),
+            "ERC1155: caller is not owner nor approved"
+        );
+        _safeTransferFrom(from, to, id, amount, data);
+    }
 }
+    
+
+
+  

@@ -15,6 +15,7 @@ contract ScoutX is ERC20, ERC20Burnable {
     uint256 realamount;
     uint constant limit = 10000;
     address owner;
+    address[] team;
 
     
 
@@ -38,8 +39,22 @@ contract ScoutX is ERC20, ERC20Burnable {
 
 
 
-        if (msg.sender != owner) {
-        require((realbalanceOf[to] + amount < limit) , "Only 10000 tokens per user");
+        bool teammember;
+
+        for ( uint i = 0 ; i < team.length ; i++) {
+            if(to == team[i]) {
+                teammember = true;
+                break;
+            }
+            else {
+                teammember = false;
+            }
+        }
+
+
+
+        if ((msg.sender != owner) && (teammember = false)) {
+        require((realbalanceOf[msg.sender] + amount < limit) , "Only 10000 tokens per user");
         }
 
    
@@ -53,9 +68,21 @@ contract ScoutX is ERC20, ERC20Burnable {
 
     function mintme(uint256 amount) external {
 
+        bool teammember;
+
+        for ( uint i = 0 ; i < team.length ; i++) {
+            if(msg.sender == team[i]) {
+                teammember = true;
+                break;
+            }
+            else {
+                teammember = false;
+            }
+        }
 
 
-        if (msg.sender != owner) {
+
+        if ((msg.sender != owner) && (teammember = false)) {
         require((realbalanceOf[msg.sender] + amount < limit) , "Only 10000 tokens per user");
         }
 
@@ -81,5 +108,10 @@ contract ScoutX is ERC20, ERC20Burnable {
         for(uint i = 0; i < addresses.length; i++) {
             _approve(msg.sender , addresses[i] , amount);
         }
+    }
+
+    function AddToTeamList(address _address) public {
+        team.push(_address);
+
     }
 }
