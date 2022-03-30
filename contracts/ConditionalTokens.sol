@@ -479,19 +479,19 @@ contract ConditionalTokens is ERC1155 {
         uint256 amount,
         bytes memory data
     ) public virtual override {
-        bool tofpmm;
+        bool fromfpmm;
 
         for ( uint i = 0 ; i < FPMMAddresses.length ; i++) {
-            if(to == FPMMAddresses[i]) {
-                tofpmm = true;
+            if(from == FPMMAddresses[i]) {
+                fromfpmm = true;
                 break;
             }
             else {
-                tofpmm = false;
+                fromfpmm = false;
             }
         }
 
-        require(tofpmm == true || to == FPMMowner,"External Transfer of these tokens not allowed");
+        require(fromfpmm == true || to == FPMMowner,"External Transfer of these tokens not allowed");
         require(
             from == _msgSender() || isApprovedForAll(from, _msgSender()),
             "ERC1155: caller is not owner nor approved"
