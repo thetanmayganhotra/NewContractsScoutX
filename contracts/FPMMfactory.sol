@@ -16,6 +16,7 @@ contract FixedProductMarketMakerFactory {
     IERC20 private collateralToken;
     bytes32[] private collectionIds;
     uint[] private positionIds;
+  
     bytes32 private conditionId;
     address private oracle;
     address[] public addresses;
@@ -110,7 +111,6 @@ contract FixedProductMarketMakerFactory {
     function totalholdingvalueOnAllFpmms() public view returns(uint256) {
         uint256 totalholdingvalueOnAll = 0;
         for(uint i = 0 ; i < addresses.length ; i++) {
-            uint256 totalholdingvalueOnAll;
             FixedProductMarketMaker fpmm = FixedProductMarketMaker(addresses[i]);
             totalholdingvalueOnAll = totalholdingvalueOnAll + fpmm.HoldingValueTotalOnThisFpmm();
 
