@@ -38,7 +38,8 @@ contract FixedProductMarketMaker is ERC20, ERC1155Receiver {
         uint256 outcomeTokensBought,
         bytes32 questionId,
         uint256 totalTradeVolume,
-        address indexed factoryAddress
+        address indexed factoryAddress,
+        uint256 netInvestmentAmount
 
     );
     event FPMMSell(
@@ -49,7 +50,8 @@ contract FixedProductMarketMaker is ERC20, ERC1155Receiver {
         uint256 outcomeTokensSold,
         bytes32 questionId,
         uint256 totalTradeVolume,
-        address indexed factoryAddress
+        address indexed factoryAddress,
+        uint256 netReturnAmount
     );
     event FPMMCreated(
         address indexed creator,
@@ -687,7 +689,8 @@ contract FixedProductMarketMaker is ERC20, ERC1155Receiver {
             outcomeTokensToBuy,
             questionId,
             totalTradeVolume,
-            factoryAddress
+            factoryAddress,
+            investmentAmountMinusFees
         );
 
     }
@@ -752,7 +755,8 @@ contract FixedProductMarketMaker is ERC20, ERC1155Receiver {
             outcomeTokensToSell,
             questionId,
             totalTradeVolume,
-            factoryAddress
+            factoryAddress,
+            returnAmountPlusFees
         );
     }
 
